@@ -37,6 +37,8 @@ LEXICON_RU = {
     "day_selected_text": "Чётко! Дата выбрана: <b>{date}</b>. Теперь определимся со временем:",
     "confirm_booking_text": "Записываемся на <b>{date}</b> в <b>{time}</b>?\n\nЖми на галку, если всё чётко!",
     "booking_confirmed": "Записал тебя, бро! До встречи ✊",
+    "booking_success": "✅ Запись успешно создана! Ждем тебя.",
+    "booking_error": "❌ Ошибка бэкенда. Попробуй позже или напиши владельцу.",
     "button_confirm": "✅ Подтвердить",
     "button_cancel": "❌ Отмена",
     "button_back_to_days": "⬅️ К выбору даты",

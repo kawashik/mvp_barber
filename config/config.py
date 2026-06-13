@@ -12,6 +12,10 @@ class BotSettings:
     admin_ids: list[int]
 
 @dataclass
+class ApiSettings:
+    base_url: str
+
+@dataclass
 class OpenAiSettings:
     api_key: str
     model: str
@@ -51,6 +55,7 @@ class Config:
     redis: RedisSettings
     OpenAi: OpenAiSettings
     Calendar: GoogleCalendar
+    api: ApiSettings
 
 
 
@@ -59,7 +64,7 @@ def get_config() -> Config:
     env.read_env()
 
     bot_token = env.str("BOT_TOKEN")
-    admin_ids = env.int("ADMIN_IDS")
+    admin_ids = env.list("ADMIN_IDS", subcast=int)
 
     db = DatabaseSettings(
         name=env.str("POSTGRES_DB"),
@@ -89,6 +94,10 @@ def get_config() -> Config:
         token_file=env("GOOGLE_TOKEN_FILE"),
     )
 
+    api = ApiSettings(
+        base_url=env.str("BACKEND_URL", default="http://127.0.0.1:8000")
+    )
+
     return Config(
         bot=BotSettings(
             token=bot_token,
@@ -97,5 +106,6 @@ def get_config() -> Config:
         db=db,
         redis=redis,
         OpenAi=OpenAi,
-        Calendar=Calendar
+        Calendar=Calendar,
+        api=api
     )
