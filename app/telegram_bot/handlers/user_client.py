@@ -7,6 +7,7 @@ from app.telegram_bot.lexicon.lexicon import LEXICON_RU
 from config.config import get_config
 import calendar # Для получения названий месяцев
 import httpx
+from datetime import datetime
 
 router = Router()
 config = get_config()
@@ -106,31 +107,46 @@ async def handle_select_time(callback: types.CallbackQuery):
         reply_markup=get_confirm_booking_keyboard(year, month, day, time)
     )
 
+
 @router.callback_query(F.data.startswith("confirm_booking_"))
 async def handle_confirm_booking(callback: types.CallbackQuery):
-    """Финальное подтверждение и отправка данных на бэкенд."""
     await callback.answer()
 
-    # Парсим данные из callback_data: confirm_booking_{year}_{month}_{day}_{time}
-    data = callback.data.split('_')
-    year, month, day, time = data[-4], data[-3], data[-2], data[-1]
+    data = callback.data.split("_")
 
-    async with httpx.AsyncClient() as client:
-        try:
+    year = int(data[-4])
+    month = int(data[-3])
+    day = int(data[-2])
+
+    hours, minutes = map(int, data[-1].split(":"))
+
+    start_at = datetime(
+        year,
+        month,
+        day,
+        hours,
+        minutes,
+    )
+
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
             response = await client.post(
                 f"{config.api.base_url}/bookings",
                 json={
                     "telegram_id": callback.from_user.id,
-                    "date": f"{year}-{month}-{day}",
-                    "time": time,
+                    "start_at": start_at.isoformat(),
                     "username": callback.from_user.username,
-                    "fullname": callback.from_user.full_name,
+                    "full_name": callback.from_user.full_name,
                 },
-                timeout=5.0
             )
-            if response.is_success:
-                await callback.message.edit_text(LEXICON_RU["booking_success"])
-            else:
-                await callback.message.edit_text(LEXICON_RU["booking_error"])
-        except Exception:
-            await callback.message.edit_text(LEXICON_RU["booking_error"])
+
+            response.raise_for_status()
+
+        await callback.message.edit_text(
+            LEXICON_RU["booking_success"]
+        )
+
+    except httpx.HTTPError:
+        await callback.message.edit_text(
+            LEXICON_RU["booking_error"]
+        )
