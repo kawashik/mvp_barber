@@ -4,10 +4,12 @@ from app.telegram_bot.keyboards.keyboards import (get_start_keyboard, get_manual
                                                  get_months_keyboard, get_days_keyboard, 
                                                  get_time_keyboard, get_confirm_booking_keyboard)
 from app.telegram_bot.lexicon.lexicon import LEXICON_RU
+from config.config import get_config
 import calendar # Для получения названий месяцев
 import httpx
 
 router = Router()
+config = get_config()
 
 @router.message(CommandStart())
 async def cmd_start(message: types.Message):
@@ -104,26 +106,31 @@ async def handle_select_time(callback: types.CallbackQuery):
         reply_markup=get_confirm_booking_keyboard(year, month, day, time)
     )
 
-
-
-router = Router()
-
 @router.callback_query(F.data.startswith("confirm_booking_"))
 async def handle_confirm_booking(callback: types.CallbackQuery):
+    """Финальное подтверждение и отправка данных на бэкенд."""
     await callback.answer()
 
-    booking_id = callback.data.split("_")[-1]
+    # Парсим данные из callback_data: confirm_booking_{year}_{month}_{day}_{time}
+    data = callback.data.split('_')
+    year, month, day, time = data[-4], data[-3], data[-2], data[-1]
 
     async with httpx.AsyncClient() as client:
-        response = await client.post(
-            "http://127.0.0.1:8000/bookings",
-            json={
-                "telegram_id": callback.from_user.id,
-                "booking_id": booking_id,
-            }
-        )
-
-    if response.is_success:
-        await callback.message.edit_text("✅ Запись подтверждена")
-    else:
-        await callback.message.edit_text("❌ Ошибка при создании записи")
+        try:
+            response = await client.post(
+                f"{config.api.base_url}/bookings",
+                json={
+                    "telegram_id": callback.from_user.id,
+                    "date": f"{year}-{month}-{day}",
+                    "time": time,
+                    "username": callback.from_user.username,
+                    "fullname": callback.from_user.full_name,
+                },
+                timeout=5.0
+            )
+            if response.is_success:
+                await callback.message.edit_text(LEXICON_RU["booking_success"])
+            else:
+                await callback.message.edit_text(LEXICON_RU["booking_error"])
+        except Exception:
+            await callback.message.edit_text(LEXICON_RU["booking_error"])
